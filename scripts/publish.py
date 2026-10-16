@@ -1,3 +1,4 @@
+
 """Publish a post to Buffer via their GraphQL API (stdlib only)."""
 
 import json
@@ -8,8 +9,8 @@ BUFFER_API = "https://api.buffer.com"
 HTTP_TIMEOUT = 30
 
 CREATE_POST_MUTATION = """
-mutation CreatePost {
-  createPost(input: __POST_INPUT__) {
+mutation CreatePost($input: CreatePostInput!) {
+  createPost(input: $input) {
     ... on PostActionSuccess {
       post { id dueAt }
     }
@@ -21,16 +22,19 @@ mutation CreatePost {
 """
 
 
-def graphql(api_key, query, timeout=HTTP_TIMEOUT, transport=None):
-    """Run a GraphQL query. `transport(api_key, query) -> body dict` can be
-    supplied to bypass HTTP (used by the mock transport in --test mode)."""
+def graphql(api_key, query, variables=None, timeout=HTTP_TIMEOUT,
+            transport=None):
+    """Run a GraphQL query, optionally using a mock transport."""
     if transport is not None:
         body = transport(api_key, query)
     else:
-        payload = json.dumps({"query": query}).encode("utf-8")
+        payload = {"query": query}
+        if variables is not None:
+            payload["variables"] = variables
+
         req = urllib.request.Request(
             BUFFER_API,
-            data=payload,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -43,30 +47,37 @@ def graphql(api_key, query, timeout=HTTP_TIMEOUT, transport=None):
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
-            raise RuntimeError(f"Buffer API HTTP {exc.code}: {detail}") from exc
+            raise RuntimeError(
+                f"Buffer API HTTP {exc.code}: {detail}"
+            ) from exc
 
     if body.get("errors"):
         raise RuntimeError(f"Buffer GraphQL error: {body['errors']}")
-    return body["data"]
+    return body.get("data")
 
 
 def create_post(api_key, channel_id, text, transport=None):
-    """Queue a text post on the given channel. Returns the created post dict."""
+    """Queue a text post on the given channel."""
     post_input = {
         "text": text,
         "channelId": channel_id,
         "schedulingType": "automatic",
         "mode": "addToQueue",
     }
-    literal = json.dumps(post_input, ensure_ascii=False)
-    query = CREATE_POST_MUTATION.replace("__POST_INPUT__", literal)
-    data = graphql(api_key, query, transport=transport)
+
+    data = graphql(
+        api_key,
+        CREATE_POST_MUTATION,
+        variables={"input": post_input},
+        transport=transport,
+    )
 
     if data is None or data.get("createPost") is None:
         raise RuntimeError(f"unexpected Buffer response: {data}")
 
     result = data["createPost"]
-    if "post" in result and result["post"]:
+    if result.get("post"):
         return result["post"]
+
     message = result.get("message", "unknown Buffer error")
     raise RuntimeError(f"Buffer rejected the post: {message}")
