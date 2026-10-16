@@ -1,0 +1,50 @@
+{
+  "sources": {
+    "hackernews": {
+      "enabled": true,
+      "min_points": 75,
+      "max_age_hours": 48,
+      "hits_per_page": 50
+    },
+    "rss": [
+      {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/feed/",
+        "weight": 90,
+        "max_age_hours": 36,
+        "enabled": true
+      },
+      {
+        "name": "The Verge",
+        "url": "https://www.theverge.com/rss/index.xml",
+        "weight": 85,
+        "max_age_hours": 36,
+        "enabled": true
+      },
+      {
+        "name": "Ars Technica",
+        "url": "https://feeds.arstechnica.com/arstechnica/index",
+        "weight": 80,
+        "max_age_hours": 36,
+        "enabled": true
+      }
+    ]
+  },
+  "selection": {
+    "lookback_days": 30
+  },
+  "post": {
+    "max_length": 3000,
+    "hashtags": "#TechNews #Technology #SoftwareEngineering",
+    "templates": {
+      "mon": "New week, new tech:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "tue": "Worth your time today:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "wed": "Midweek tech read:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "thu": "Today's tech deep dive:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "fri": "Closing out the week with:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "sat": "Weekend tech read:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "sun": "Sunday pick from the tech world:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}",
+      "default": "Tech story of the day:\n\n{title}\n{url}\n\n{detail}\n\n{hashtags}"
+    }
+  }
+}
