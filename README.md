@@ -6,6 +6,8 @@ Automated daily tech post to your **LinkedIn profile**, curated from news
 
 No dependencies - pure Python standard library.
 
+> First time here? See [SETUP.md](SETUP.md) for the full step-by-step guide.
+
 ## How it works
 
 ```
