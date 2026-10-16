@@ -21,6 +21,25 @@ mutation CreatePost {
 """
 
 
+def _to_graphql_literal(value):
+    """Convert Python data to a GraphQL input literal."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(_to_graphql_literal(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ", ".join(
+            f"{key}: {_to_graphql_literal(item)}" for key, item in value.items()
+        ) + "}"
+    raise TypeError(f"unsupported GraphQL input type: {type(value)!r}")
+
+
 def graphql(api_key, query, timeout=HTTP_TIMEOUT, transport=None):
     """Run a GraphQL query. `transport(api_key, query) -> body dict` can be
     supplied to bypass HTTP (used by the mock transport in --test mode)."""
@@ -58,7 +77,7 @@ def create_post(api_key, channel_id, text, transport=None):
         "schedulingType": "automatic",
         "mode": "addToQueue",
     }
-    literal = json.dumps(post_input, ensure_ascii=False)
+    literal = _to_graphql_literal(post_input)
     query = CREATE_POST_MUTATION.replace("__POST_INPUT__", literal)
     data = graphql(api_key, query, transport=transport)
 
