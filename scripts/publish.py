@@ -9,8 +9,13 @@ BUFFER_API = "https://api.buffer.com"
 HTTP_TIMEOUT = 30
 
 CREATE_POST_MUTATION = """
-mutation CreatePost($input: CreatePostInput!) {
-  createPost(input: $input) {
+mutation CreatePost {
+  createPost(input: {
+    text: %s
+    channelId: %s
+    schedulingType: automatic
+    mode: addToQueue
+  }) {
     ... on PostActionSuccess {
       post { id dueAt }
     }
@@ -58,17 +63,14 @@ def graphql(api_key, query, variables=None, timeout=HTTP_TIMEOUT,
 
 def create_post(api_key, channel_id, text, transport=None):
     """Queue a text post on the given channel."""
-    post_input = {
-        "text": text,
-        "channelId": channel_id,
-        "schedulingType": "automatic",
-        "mode": "addToQueue",
-    }
+    mutation = CREATE_POST_MUTATION % (
+        json.dumps(text, ensure_ascii=False),
+        json.dumps(channel_id),
+    )
 
     data = graphql(
         api_key,
-        CREATE_POST_MUTATION,
-        variables={"input": post_input},
+        mutation,
         transport=transport,
     )
 
