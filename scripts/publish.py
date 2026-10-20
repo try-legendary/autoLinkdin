@@ -9,8 +9,8 @@ BUFFER_API = "https://api.buffer.com"
 HTTP_TIMEOUT = 30
 
 CREATE_POST_MUTATION = """
-mutation CreatePost($input: CreatePostInput!) {
-  createPost(input: $input) {
+mutation CreatePost {
+  createPost(input: __POST_INPUT__) {
     ... on PostActionSuccess {
       post { id dueAt }
     }
@@ -20,6 +20,36 @@ mutation CreatePost($input: CreatePostInput!) {
   }
 }
 """
+
+
+class GraphQLEnum:
+    """Marker type for GraphQL enum literals."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        self.value = value
+
+
+def _to_graphql_literal(value):
+    """Convert Python values into GraphQL input literals."""
+    if isinstance(value, GraphQLEnum):
+        return value.value
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(_to_graphql_literal(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ", ".join(
+            f"{key}: {_to_graphql_literal(item)}" for key, item in value.items()
+        ) + "}"
+    raise TypeError(f"unsupported GraphQL input type: {type(value)!r}")
 
 
 def graphql(api_key, query, variables=None, timeout=HTTP_TIMEOUT,
@@ -61,14 +91,14 @@ def create_post(api_key, channel_id, text, transport=None):
     post_input = {
         "text": text,
         "channelId": channel_id,
-        "schedulingType": "automatic",
-        "mode": "addToQueue",
+        "schedulingType": GraphQLEnum("automatic"),
+        "mode": GraphQLEnum("addToQueue"),
     }
+    query = CREATE_POST_MUTATION.replace("__POST_INPUT__", _to_graphql_literal(post_input))
 
     data = graphql(
         api_key,
-        CREATE_POST_MUTATION,
-        variables={"input": post_input},
+        query,
         transport=transport,
     )
 
