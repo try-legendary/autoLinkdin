@@ -9,8 +9,8 @@ BUFFER_API = "https://api.buffer.com"
 HTTP_TIMEOUT = 30
 
 CREATE_POST_MUTATION = """
-mutation CreatePost($input: CreatePostInput!) {
-  createPost(input: $input) {
+mutation CreatePost {
+  createPost(input: __POST_INPUT__) {
     ... on PostActionSuccess {
       post { id dueAt }
     }
@@ -56,6 +56,23 @@ def graphql(api_key, query, variables=None, timeout=HTTP_TIMEOUT,
     return body.get("data")
 
 
+def _graphql_literal(value):
+    """Render Python data as a GraphQL literal."""
+    if isinstance(value, dict):
+        fields = ", ".join(f"{key}: {_graphql_literal(val)}"
+                           for key, val in value.items())
+        return "{" + fields + "}"
+    if isinstance(value, list):
+        return "[" + ", ".join(_graphql_literal(item) for item in value) + "]"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return json.dumps(value, ensure_ascii=False)
+
+
 def create_post(api_key, channel_id, text, transport=None):
     """Queue a text post on the given channel."""
     post_input = {
@@ -65,12 +82,9 @@ def create_post(api_key, channel_id, text, transport=None):
         "mode": "addToQueue",
     }
 
-    data = graphql(
-        api_key,
-        CREATE_POST_MUTATION,
-        variables={"input": post_input},
-        transport=transport,
-    )
+    query = CREATE_POST_MUTATION.replace("__POST_INPUT__",
+                                         _graphql_literal(post_input))
+    data = graphql(api_key, query, transport=transport)
 
     if data is None or data.get("createPost") is None:
         raise RuntimeError(f"unexpected Buffer response: {data}")
